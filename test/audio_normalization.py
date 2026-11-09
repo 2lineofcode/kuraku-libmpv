@@ -139,3 +139,45 @@ with tempfile.TemporaryDirectory(prefix='kuraku-normalization-') as folder:
         print('PASS: toggle, seek and rejected-filter rollback keep audio output active.')
     finally:
         mpv.mpv_terminate_destroy(handle)
+
+def verify_vr_projection():
+    source = Path(__file__).parent / 'fixtures' / 'vr.mp4'
+    assert mpv.avfilter_get_by_name(b'v360'), 'Missing filter: v360'
+    handle = mpv.mpv_create()
+    try:
+        for name, value in {'config': 'no', 'ao': 'null', 'vo': 'null', 'pause': 'yes',
+                            'terminal': 'no'}.items():
+            assert mpv.mpv_set_option_string(handle, name.encode(), value.encode()) >= 0
+        assert mpv.mpv_initialize(handle) >= 0
+        mpv.mpv_request_log_messages(handle, b'error')
+        assert command(handle, 'loadfile', str(source)) >= 0
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline and property_value(handle, 'video-params/w') != '2048':
+            mpv.mpv_wait_event(handle, .02)
+        assert property_value(handle, 'video-params/w') == '2048', 'Video did not load'
+        assert command(handle, 'vf', 'add', '@preserved:format=fmt=yuv420p') >= 0
+        for projection in ['e', 'he']:
+            for stereo in ['2d', 'sbs', 'tb']:
+                for fov in [40, 90, 120]:
+                    vertical = 2 * math.atan(math.tan(fov * math.pi / 360) * 9 / 16) * 180 / math.pi
+                    value = f'@kuraku-vr360:lavfi=[v360=input={projection}:output=flat:in_stereo={stereo}:out_stereo=2d:w=1280:h=720:h_fov={fov}:v_fov={vertical}:yaw=20:pitch=10]'
+                    assert command(handle, 'vf', 'add', value) >= 0, (projection, stereo, fov)
+                    filters = property_value(handle, 'vf')
+                    assert 'kuraku-vr360' in filters and 'preserved' in filters, filters
+                    deadline = time.monotonic() + 5
+                    while time.monotonic() < deadline:
+                        event = mpv.mpv_wait_event(handle, .02).contents
+                        if event.id == 2:
+                            raise AssertionError(c.cast(event.data, c.POINTER(Log)).contents.text.decode())
+                        if property_value(handle, 'video-out-params/w') == '1280':
+                            break
+                    assert property_value(handle, 'video-out-params/w') == '1280'
+                    assert property_value(handle, 'video-out-params/h') == '720'
+        assert command(handle, 'vf', 'remove', '@kuraku-vr360') >= 0
+        filters = property_value(handle, 'vf')
+        assert 'kuraku-vr360' not in filters and 'preserved' in filters
+        print('PASS: 18 VR projection/stereo/FOV combinations, view replacement and independent filter preservation.')
+    finally:
+        mpv.mpv_terminate_destroy(handle)
+
+verify_vr_projection()

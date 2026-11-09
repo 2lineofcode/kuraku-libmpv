@@ -1,4 +1,4 @@
-name: macOS normalization
+name: macOS media filters
 
 on:
   workflow_dispatch:
@@ -23,6 +23,6 @@ jobs:
       - run: python3 -B test/audio_normalization.py build/kuraku/base
       - uses: actions/upload-artifact@v4
         with:
-          name: macos-universal-normalization
+          name: macos-universal-media-filters
           path: build/output/*
           if-no-files-found: error

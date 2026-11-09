@@ -5,9 +5,9 @@ cd "$(dirname "$0")/../.."
 ROOT="$PWD"
 BUILD="$ROOT/build/kuraku"
 OUTPUT="$ROOT/build/output"
-VERSION="v0.6.0-kuraku.1"
+VERSION="v0.6.0-kuraku.2"
 BASE="libmpv-xcframeworks_v0.6.0_macos-universal-video-default.tar.gz"
-FILTERS="overlay,equalizer,acompressor,alimiter,dynaudnorm,loudnorm,aformat,aresample"
+FILTERS="overlay,equalizer,acompressor,alimiter,dynaudnorm,loudnorm,aformat,aresample,v360"
 mkdir -p "$BUILD" "$OUTPUT"
 
 fetch() {
